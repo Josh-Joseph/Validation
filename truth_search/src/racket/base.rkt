@@ -1,6 +1,8 @@
 #lang racket
 
-(require (for-syntax racket/syntax))
+(require (for-syntax racket/syntax)
+	 (for-syntax racket/sequence)
+	 (for-syntax racket/list))
 
 ;;=====================================================================
 
@@ -182,9 +184,106 @@
 
 				 
 	      
+;;
+;; Define match expanders for a new construct
+(define-syntax (%define/match-expanders stx)
+  (syntax-case stx ()
+    [(%define/match-expanders world-ident construct-ident)
+     (begin
+       (unless (and (identifier? #'world-ident)
+		    (identifier? #'construct-ident))
+	 (raise-syntax-error 
+	  #f 
+	  "Need both world and construct to be identifiers"
+	  #'world-ident))
+       #'())]))
 
 ;;=====================================================================
 ;;=====================================================================
+
+;; testin out match expanders
+(define/construct math-world sin)
+
+(begin-for-syntax
+ (define (%split-construct-argtypes args)
+   (let* ([pos-args
+	   (for/list ([a args])
+	     #:break (keyword?
+		      (if (syntax? a)
+			  (syntax-e a)
+			  a))
+	     a)]
+	  [end-pos-arg-idx (length pos-args)]
+	  [kwspecs 
+	   (sort 
+	    (for/list ([spec (in-slice 2 (list-tail args end-pos-arg-idx))])
+	      spec)
+	    keyword<?
+	    #:key (lambda (x)
+		    (let ([a (first x)])
+		      (if (syntax? a)
+			  (syntax-e a)
+			  a))))]
+	  [kws (map first kwspecs)]
+	  [kwvals (map second kwspecs)])
+     (list pos-args
+	   (list kws kwvals))))
+ )
+
+(define-match-expander match/mw:sin 
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ pargs ... )
+       (with-syntax* ([splitted-argtypes
+		       (%split-construct-argtypes (syntax-e #'(pargs ...)))]
+		      [pos-args (first (syntax-e #'splitted-argtypes))]
+		      [kw-args (second (syntax-e #'splitted-argtypes))]
+		      [kws (first (syntax-e #'kw-args))]
+		      [kw-pats (second (syntax-e #'kw-args))])
+	     #'(MathWorld-Construct 'math-world:sin 
+				    (list . pos-args)
+				    (list (list . kws) (list . kw-pats))))])))
+
+(define s0 (mw:sin 1 2 3))
+
+(match s0
+  [(Construct _ (list 1 2 3) '(() ())) 'construc-1]
+  [_ 'other])
+
+(match s0
+  [(match/mw:sin 1 2 3) 'sin-match-1]
+  [_ 'other])
+
+(match s0
+  [(match/mw:sin 1 b 3) (list b)]
+  [_ 'other])
+
+(define s1 (mw:sin 1 2 3 #:b 2 #:a 1))
+
+(match s1
+  [(Construct _ (list 1 2 3) '((#:a #:b) (1 2))) 'construct-1]
+  [_ 'other])
+
+(match s1
+  [(match/mw:sin 1 2 3 #:a 1 #:b 2) 'sin-match-2]
+  [_ 'other])
+
+(match s1
+  [(match/mw:sin 1 2 c #:a a #:b b) (list a b c)]
+  [_ 'other])
+
+(match s1
+  [(match/mw:sin args ... #:a a #:b b) (list args a b)]
+  [_ 'other])
+
+(match s1
+  [(match/mw:sin args ... 2 3 #:a a #:b b) (list args a b)]
+  [_ 'other])
+
+(match s1
+  [(match/mw:sin args ...) (list args)]
+  [_ 'other])
+
 ;;=====================================================================
 ;;=====================================================================
 ;;=====================================================================
