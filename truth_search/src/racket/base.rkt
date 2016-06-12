@@ -140,21 +140,46 @@
 				   "construct:maker:~a:~a"
 				   #'world-ident
 				   #'construct-ident)]
+		       [pred-idents
+			(map (lambda (p)
+			       (format-id #'construct-ident
+					  "~a~a?"
+					  p #'construct-ident))
+			     (syntax->datum #'prefixes))]
+		       [pred-lambda-ident
+			(format-id #'construct-ident
+				   "construct:predicate:~a:~a"
+				   #'world-ident
+				   #'construct-ident)]
+		       [all-define-idents
+			(for/fold ([defs '()])
+			    ([maker (syntax-e #'maker-idents)]
+			     [pred  (syntax-e #'pred-idents)])
+			  (values (append defs (list maker pred))))]
 		       [definitions
-			 (for/list ([ident-f (syntax->datum #'maker-idents)])
-			   #'maker-lambda-ident)])
+			 (for/fold ([defs '()]) 
+			     ([ident-maker (syntax->datum #'maker-idents)]
+			      [ident-pred (syntax->datum #'pred-idents)])
+			   (values (append defs (list #'maker-lambda-ident #'pred-lambda-ident))))])
 		      #'(define-values 
-			   maker-idents
-			   (let* ([(constructor predicate)
-				   (world->base-construct-info 'world-ident)]
-				  [maker-lambda-ident
-				   (make-keyword-procedure
-				    (lambda (kws kw-args . rest)
-				      (constructor 'tag 
-						   rest 
-						   (list kws kw-args))))])
-			     (values . definitions))))) ]))
-		    
+			  all-define-idents
+			  (let* ([info 
+				  (world->base-construct-info 'world-ident)]
+				 [constructor (first info)]
+				 [predicate (second info)]
+				 [maker-lambda-ident
+				  (make-keyword-procedure
+				   (lambda (kws kw-args . rest)
+				     (constructor 'tag 
+						  rest 
+						  (list kws kw-args))))]
+				 [pred-lambda-ident
+				  (lambda (x)
+				    (and (predicate x)
+					 (eq? (Construct-tag x)
+					      'tag)))])
+			    (values . definitions))))) ]))
+
 				 
 	      
 
