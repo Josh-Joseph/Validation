@@ -49,7 +49,7 @@
 ;; Maps a construct world identifier to a set of 
 ;; prefixes for names
 
-(begin-for-syntax
+(begin-for-syntax   
  
  ;; The internal mapping hatshtable
  (define %construct-world-identifier->name-preffixes
@@ -75,6 +75,34 @@
  )
  
 ;;=====================================================================
+
+;; Mapping between a world identifier and the
+;; base structure for constructs
+;;
+;; Map[ symbol => ( constructor, predicate ) ]
+(define %construct-world-identifier->base-structure-info
+  (make-hasheq
+   (quasiquote 
+    ( (math-world (unquote MathWorld-Construct) 
+		  (unquote MathWorld-Construct?))
+      (computation-world (unquote ComputationalWorld-Construct) 
+			 (unquote ComputationalWorld-Construct?))
+      (real-world (unquote RealWorld-Construct) 
+		  (unquote RealWorld-Construct?)) ))))
+
+;; The default Construct constructor
+(define %DEFAULT-BASE-CONSTRUCT-INFO (list Construct Construct?) )
+
+;; Function which return the base Construct info
+;; for a given workd identifier
+(define (world->base-construct-info world)
+  (hash-ref 
+   %construct-world-identifier->base-structure-info
+   world
+   %DEFAULT-BASE-CONSTRUCT-INFO))
+
+;;=====================================================================
+
 
 ;; Syntax testing
 (define-syntax (define/tcs stx)
@@ -117,10 +145,14 @@
 			   #'maker-lambda-ident)])
 		      #'(define-values 
 			   maker-idents
-			   (let ([maker-lambda-ident
-				  (make-keyword-procedure
-				   (lambda (kws kw-args . rest)
-				     (Construct 'tag rest (list kws kw-args))))])
+			   (let* ([(constructor predicate)
+				   (world->base-construct-info 'world-ident)]
+				  [maker-lambda-ident
+				   (make-keyword-procedure
+				    (lambda (kws kw-args . rest)
+				      (constructor 'tag 
+						   rest 
+						   (list kws kw-args))))])
 			     (values . definitions))))) ]))
 		    
 				 
