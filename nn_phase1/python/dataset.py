@@ -99,6 +99,10 @@ class RandomPolynomial( DatasetGenerator ):
                   noise_sigma = 1.0,
                   domain = [ -2.0, 2.0 ],
                   identifier = None ):
+        self.order = order
+        self.noise_sigma = noise_sigma
+        self.domain = domain
+        self.identifier = identifier
 
     def generate( self,
                   num_samples,
@@ -234,7 +238,8 @@ def _generate_from_random_polynomial(
         coeff_domain = [ -10.0, 10.0 ],
         domain = [-2.0, 2.0],
         noise_sigma = 1.0,
-        seed = None ):
+        seed = None,
+        identifier = None ):
     
     _set_seed( seed )
 
@@ -242,15 +247,16 @@ def _generate_from_random_polynomial(
     cdelta = coeff_domain[1] - coeff_domain[0]
     poly = np.poly1d( coeff_domain[0] + np.random.random( order ) * cdelta )
 
-    identifier = "RandomPoly({0}, sigma={1}{2}, #{3})".format(
-        poly,
-        noise_sigma,
-        "@{0}".format(seed) if seed is not None else "",
-        num_samples )
-
+    if identifier is None:
+        identifier = "RandomPoly({0}, sigma={1}{2}, #{3})".format(
+            poly,
+            noise_sigma,
+            "@{0}".format(seed) if seed is not None else "",
+            num_samples )
+        
 
     # return dataset
-    return generate_from_polynomial(
+    return _generate_from_polynomial(
         num_samples,
         poly,
         domain = domain,
