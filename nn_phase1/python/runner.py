@@ -173,9 +173,9 @@ def test():
                   distance_function = lambda y, y_hat: y - y_hat ) ],
 
             # cross-validation parameters to test
-            [ 2, 10, 30 ],
-            [ 10, 20, 100 ],
-            [ 0.1, 0.5, 0.7 ],
+            [ 2, 10, 30 ],       # iterations
+            [ 10, 20, 100 ],     # total samples
+            [ 0.1, 0.5, 0.7 ],   # train/test split (train fraction)
 
             # seeds
             [ None ],
@@ -196,9 +196,9 @@ def test():
             [ validation.ContinuousKolmorogovSmirnovObjective() ],
 
             # cross-validation parameters to test
-            [ 2, 5 ],
-            [ 10, 20, 100 ],
-            [ 0.1, 0.5, 0.7 ],
+            [ 2, 5 ],           # iterations
+            [ 10, 20, 100 ],    # total samples
+            [ 0.1, 0.5, 0.7 ],  # train/test split (train fraction)
 
             # seeds
             [ None ],
