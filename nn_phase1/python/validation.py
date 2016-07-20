@@ -5,6 +5,8 @@ import operator
 import itertools
 import numpy as np
 
+import dataset
+
 ####
 #### All of the evaluation functions
 #### of the form funcname( dataset, nn_algorithm ) -> score
@@ -204,7 +206,44 @@ class ContinuousKolmorogovSmirnovObjective( GenerativeModelObjective ):
                           zip( a, b, ops ) ) )
         
 
+
+    ##
+    # Computes an approximate p-value for the kolmogorov-smirnov
+    # test.
+    # Here, we take *many* repeated sets of samples from the
+    # generative model and compute the empirical CDF for the
+    # given statistic
+    #
+    # @param max_d_stat : The max distance statistic, result of
+    #                     a KS test between dataset and model
+    # @param dataset : a dataset of asmples
+    # @param model : A generative model (has a sample() method)
+    #
+    # @return pvalue
+    def approximate_pvalue( self, max_d_stat, ds, model, iterations=100 ):
+        n = len( ds.x )
+        stats = []
+        for i in xrange(iterations):
+            
+            # sample a new test dataset from model
+            model_samples = model.sample(n=n)
+            test_ds = dataset.dataset_from_samples( model_samples )
+            
+            # compute statistic for this dataset to model.
+            # Note that these are *equal* distributions hence the null
+            # hypothesis of the test is true
+            stat = self.evaluate( test_ds, model )
+
+            # store this statistic
+            stats.append( stat )
         
+        # Ok, approximate the statistic under the null hypothesis CDF
+        # from the samples :-)
+        num_more = 0
+        for s in stats:
+            if s >= max_d_stat:
+                num_more += 1
+        return float( num_more ) / float( iterations )
 
 ##=============================================================================
 ##=============================================================================

@@ -39,6 +39,17 @@ def _set_seed( seed ):
 ##=============================================================================
 
 ##
+# Returns a dataset object from the given samples.
+# Samples are assumed to be List[ (x,y) ] pairs
+def dataset_from_samples( samples, identifier=None ):
+    return Dataset(
+        x = map(lambda s: s[0], samples),
+        y = map(lambda s: s[1], samples),
+        identifier = identifier )
+
+##=============================================================================
+
+##
 # A generator is an object which generates datasets.
 #
 # Dataset Generators have type: # -> Dataset[*]
