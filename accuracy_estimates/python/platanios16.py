@@ -143,14 +143,20 @@ class FlatIndependentAccuracyGibbsSampler( object ):
 
     ##
     #
-    def sample(self, n=None):
+    def sample(self, n=None, every_n=100):
         if n is None:
             self._single_gibbs_sweep()
             return self._create_sample_from_state()
         samples = []
-        for i in xrange(n):
+        skip_counter = 0
+        num = 0
+        while num < n:
             self._single_gibbs_sweep()
-            samples.append( self._create_sample_from_state() )
+            skip_counter += 1
+            if skip_counter >= every_n:
+                samples.append( self._create_sample_from_state() )
+                skip_counter = 0
+                num += 1
         return samples
 
     ##
@@ -167,12 +173,14 @@ class FlatIndependentAccuracyGibbsSampler( object ):
 
 ##
 # Generate sample fake data
+#
+# p is probability of label being 1
 def generate_fake_data( n = 1000, p = 0.5 ):
     data = []
     for i in xrange(n ):
         x = np.random.random()
         l = 0
-        if x > p:
+        if x < p:
             l = 1
         data.append( (x, l ) )
     return data
