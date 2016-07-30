@@ -93,22 +93,32 @@ class FlatIndependentAccuracyGibbsSampler( object ):
         # Sample *each* label independently
         for i in xrange(self.S):
 
-            # compute the probability of the label (bernoulli) in log space
+            # compute the probability of the label == 1 in log space
             log_i = 0.0
             log_pi_i = 0.0
             for j in xrange(self.N):
                 ej = self.rv_es[j]
-                if self.f[i,j] != self.rv_labels[i]:
+                if self.f[i,j] != 1:
                     log_pi_i += np.log( ej )
                 else:
                     log_pi_i += np.log( 1.0 - ej )
-            if self.rv_labels[i] == 1:
-                log_i = np.log( self.rv_p ) + log_pi_i
-            else:
-                log_i = np.log( 1.0 - self.rv_p ) + log_pi_i
+            log_i = np.log( self.rv_p ) + log_pi_i
+            
+            # compute probability of label == 0 in log space
+            # for normalizing constant of bernoulli
+            norm_log_i = 0.0
+            norm_log_pi_i = 0.0
+            for j in xrange(self.N):
+                ej = self.rv_es[j]
+                if self.f[i,j] != 0:
+                    norm_log_pi_i += np.log( ej )
+                else:
+                    norm_log_pi_i += np.log( 1.0 - ej )
+            norm_log_i = np.log( 1.0 - self.rv_p ) + norm_log_pi_i
+
             
             # sample from bernoulli
-            p_i = np.exp( log_i )
+            p_i = np.exp( log_i ) / ( np.exp( log_i ) + np.exp( norm_log_i ) )
             self.rv_labels[ i ] = scipy.stats.bernoulli(p_i).rvs()
             logger.debug( "l_{0} ~ Bern( {1} )  log(pi_{0}) = {2} , l_{0} = {3}".format(
                 i,
@@ -136,9 +146,10 @@ class FlatIndependentAccuracyGibbsSampler( object ):
         self.num_gibbs_sweeps += 1
 
         # log stuff
-        logger.info( "gibbs sweep {0}: {1} seconds".format(
-            self.num_gibbs_sweeps,
-            (end_time - start_time).total_seconds() ) )
+        if self.num_gibbs_sweeps % 100 == 1:
+            logger.debug( "gibbs sweep {0}: {1} seconds".format(
+                self.num_gibbs_sweeps,
+                (end_time - start_time).total_seconds() ) )
         
 
     ##
@@ -150,13 +161,19 @@ class FlatIndependentAccuracyGibbsSampler( object ):
         samples = []
         skip_counter = 0
         num = 0
+        start_time = datetime.datetime.now()
         while num < n:
             self._single_gibbs_sweep()
             skip_counter += 1
             if skip_counter >= every_n:
+                end_time = datetime.datetime.now()
                 samples.append( self._create_sample_from_state() )
                 skip_counter = 0
                 num += 1
+                logger.info( "Sample[{0}] took {1} seconds".format(
+                    num,
+                    ( end_time - start_time ).total_seconds() ) )
+                start_time = datetime.datetime.now()
         return samples
 
     ##
@@ -166,7 +183,40 @@ class FlatIndependentAccuracyGibbsSampler( object ):
             p = np.copy(self.rv_p),
             l = np.copy(self.rv_labels),
             e = np.copy(self.rv_es) )
+
+
+    def log_pdf( self, p, l, e ):
         
+        # first comute the lieklihood of data f given l and e
+        log_p_f = 0.0
+        for i in xrange(self.S):
+            for j in xrange(self.N):
+                if l[i] == self.f[i,j]:
+                    log_p_f += np.log( 1.0 - e[j] )
+                else:
+                    log_p_f += np.log( e[j] )
+        
+        # compute probability of l given p
+        log_p_l = 0.0
+        for l_i in l:
+            if l_i == 1:
+                log_p_l += np.log( p )
+            else:
+                log_p_l += np.log( 1.0 - p )
+        
+        # compute prob e given priors
+        log_p_e = 0.0
+        for e_j in e:
+            log_p_e += scipy.stats.beta( self.prior_alpha_e,
+                                         self.prior_beta_e ).logpdf( e_j )
+            
+        # compuite probability of p given priors
+        log_p_p = scipy.stats.beta( self.prior_alpha_p,
+                                    self.prior_beta_p ).logpdf( p )
+
+        # retunr the log pdf
+        return log_p_f + log_p_l + log_p_e + log_p_p
+
 
 ##========================================================================
 ##========================================================================
@@ -189,8 +239,8 @@ def generate_fake_data( n = 1000, p = 0.5 ):
 
 ##
 # generates a fake classifier fro the dake data with given accuracy
-def generate_fake_classifier( wanted_accuracy ):
-    rv = scipy.stats.bernoulli( 1.0 - wanted_accuracy )
+def generate_fake_classifier( wanted_error_rate ):
+    rv = scipy.stats.bernoulli( wanted_error_rate )
     return lambda x: (x[1] + rv.rvs()) % 2
 
 ##========================================================================
